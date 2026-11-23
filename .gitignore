@@ -3,3 +3,5 @@
 
 # Build output of build.sh (regenerate with ./build.sh)
 dist/
+
+*.mp4
