@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excitable Wave Propagation Simulator</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<h1>Excitable Wave Propagation Simulator</h1>
+<p class="subtitle">Click a cell to stimulate it (and its two neighbours) • Demonstrates trigger waves and the role of the refractory period</p>
+
+<div class="section-label">Cell Array (click to stimulate; queued stimuli are outlined while paused)</div>
+<div class="cell-container" id="cells"></div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-box" style="background:#dbeafe"></div><span>Excitable</span></div>
+  <div class="legend-item"><div class="legend-box" style="background:#f59e0b"></div><span>Active</span></div>
+  <div class="legend-item"><div class="legend-box" style="background:linear-gradient(90deg,#fca5a5,#dbeafe)"></div><span>Refractory (recovering)</span></div>
+</div>
+
+<div class="status-bar">
+  <span>Time: <span id="time-display">0</span></span>
+  <span id="boundary-display"></span>
+  <span id="regime-display"></span>
+</div>
+
+<div class="section-label">Kymograph (space vs time)</div>
+<div class="kymograph-container">
+  <canvas id="kymograph" height="300"></canvas>
+  <span class="kymo-label bottom">Space →</span>
+  <span class="kymo-label top">↑ Time</span>
+</div>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Pulse Width (τ<sub>pulse</sub>): <span id="pw-val">1</span></label>
+    <input type="range" id="pulse-width" min="1" max="20" value="1">
+    <div class="hint">Duration of active state</div>
+  </div>
+  <div class="control-group">
+    <label>Refractory Period (τ<sub>ref</sub>): <span id="rp-val">4</span></label>
+    <input type="range" id="refractory" min="0" max="40" value="4">
+    <div class="hint">Recovery time during which a cell cannot fire</div>
+  </div>
+  <div class="control-group">
+    <label>Signal Lifetime (τ<sub>sig</sub>): <span id="sl-val">4</span></label>
+    <input type="range" id="signal-life" min="0" max="20" value="4">
+    <div class="hint">How long the released messenger lingers after firing stops</div>
+  </div>
+  <div class="control-group">
+    <label>Coupling Strength (D): <span id="cs-val">0.30</span></label>
+    <input type="range" id="coupling" min="15" max="50" value="30">
+    <div class="hint">Signal strength between neighbors</div>
+  </div>
+  <div class="control-group">
+    <label>Activation Threshold (θ): <span id="th-val">0.18</span></label>
+    <input type="range" id="threshold" min="15" max="50" value="18">
+    <div class="hint">Signal needed to trigger activation</div>
+  </div>
+  <div class="control-group">
+    <label>Coupling Range: <span id="cr-val">1</span> cells</label>
+    <input type="range" id="coupling-range" min="1" max="15" value="1">
+    <div class="hint">Max distance for signal spread</div>
+  </div>
+  <div class="control-group">
+    <label>Spatial Decay (λ): <span id="sd-val">0.65</span></label>
+    <input type="range" id="spatial-decay" min="30" max="90" value="65">
+    <div class="hint">Signal × λ per cell distance</div>
+  </div>
+</div>
+
+<div class="buttons">
+  <button class="btn btn-pause" id="btn-pause">Pause</button>
+  <button class="btn btn-reset" id="btn-reset">Reset</button>
+  <button class="btn btn-stim" id="btn-left">Stimulate Left</button>
+  <button class="btn btn-stim" id="btn-center">Stimulate Centre</button>
+  <button class="btn btn-stim" id="btn-right">Stimulate Right</button>
+  <button class="btn btn-both" id="btn-both">Both Ends</button>
+</div>
+
+<div class="experiments">
+  <h3>Key Experiments</h3>
+  <ul>
+    <li><strong>Trigger wave:</strong> Default settings (each cell is coupled only to its nearest neighbours). Click "Stimulate Centre" — two waves travel outward at a constant 1 cell/step without losing amplitude. Every cell fires exactly once and is followed by a refractory wake (red → blue in the kymograph).</li>
+    <li><strong>Wave collision:</strong> Click "Both Ends" — the waves meet and annihilate, because each runs into the refractory cells left behind by the other.</li>
+    <li><strong>Role of the refractory period:</strong> Lower τ<sub>ref</sub> from 4 to 2 — cells recover while the messenger released by their neighbours is still above threshold, so they fire again and the stimulus site becomes a pacemaker emitting a train of waves (also with τ<sub>ref</sub> = 0). Raise τ<sub>sig</sub> to 8 and re-excitation already appears at τ<sub>ref</sub> = 5: refractoriness must outlast the signal for a single, one-way wave.</li>
+    <li><strong>Threshold for propagation:</strong> With nearest-neighbour coupling a firing cell gives its neighbour an input of D·λ = 0.30 × 0.65 = 0.195. Raise θ to 0.20 (just above it) and the wave no longer propagates; equivalently, lower D to 0.25 at θ = 0.18.</li>
+    <li><strong>Starting vs. sustaining a wave (long-range coupling):</strong> Set coupling range = 8, τ<sub>pulse</sub> = 8, τ<sub>ref</sub> = 15. The wave is now faster (2–3 cells/step), because each cell feels the whole active region behind the front. A click excites 3 cells, which give the next cell an input of ≈ 0.40. Raise θ to 0.45 and click "Stimulate Left" — no wave starts. Now set θ back to 0.30, click "Stimulate Left" and, while the wave is travelling, drag θ up to 0.45: the running wave keeps going (1 cell/step), because its front is driven by the many active cells behind it. Starting a trigger wave is harder than sustaining one.</li>
+  </ul>
+  <p class="note">The status bar classifies the current parameters by running hidden test waves from the left end: one started by a normal 3-cell click, and one that is already running.</p>
+</div>
+
+<script src="model.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
