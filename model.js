@@ -52,11 +52,15 @@ function advance(cellArray, p, stimulated) {
 
 // Run a hidden test wave from the left end (3-cell stimulus, as for a click).
 // easyStart: launch the wave with a low threshold and switch to the real θ once it is running
-// (cell 10 has fired) — this tests whether an established wave can propagate.
+// (cell max(10, range) has fired, so the front has a full coupling range of fired cells behind it)
+// — this tests whether an established wave can propagate.
 function probeWave(p, easyStart) {
-  const startParams = easyStart ? {...p, threshold: Math.min(p.threshold, 0.15)} : p;
+  // Launch threshold: 0.15, or lower if even a single firing neighbour (D·λ) could not trigger a cell.
+  const launchTh = Math.min(p.threshold, 0.15, 0.9 * p.coupling * p.spatialDecay);
+  const startParams = easyStart ? {...p, threshold: launchTh} : p;
   let c = freshCells(), launched = !easyStart;
   let stim = new Set(Array.from({length: STIM_WIDTH}, (_, k) => k));
+  const launchCell = Math.max(10, p.couplingRange);
   const fires = new Array(NUM_CELLS).fill(0), firstFire = new Array(NUM_CELLS).fill(-1);
   // With easyStart, cells near the start may re-fire only because of the low launch threshold;
   // count re-firing only well beyond the launch region.
@@ -71,7 +75,7 @@ function probeWave(p, easyStart) {
         if (firstFire[i] < 0) firstFire[i] = t;
       }
     });
-    if (firstFire[10] >= 0) launched = true;
+    if (firstFire[launchCell] >= 0) launched = true;
     // After a re-firing, keep going until we know whether activity spreads to the far end
     // (repeated waves) or stays confined near the stimulus (local re-firing).
     if (hasRefired() && firstFire[NUM_CELLS - 1] >= 0) break;

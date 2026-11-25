@@ -122,6 +122,13 @@ Now lower **θ**, keeping D = 0.25 (D·λ = 0.1625):
 - Propagation is all-or-none. It depends on whether the input a firing cell delivers (D·λ) exceeds the threshold θ, not on either number alone.
 - Weaker coupling, as in reduced gap-junction conductance in heart tissue, can block conduction. A more excitable tissue (lower θ) can compensate.
 - **Variation:** starting from the defaults, raise θ to 0.20. This blocks the wave too.
+- **General formula.** A wave front either moves forward every step or dies, because once no new cell fires the inputs ahead only decay. In a wave moving 1 cell/step, the cell k places behind the front fired k − 1 steps ago. With coupling range R, the cell just ahead of the front therefore receives
+
+  I = Σ_{k=1}^{R} D · λ^k · s(k−1),  where s(a) = 1 while a < τ_pulse and e^(−(a−τ_pulse+1)/τ_sig) afterwards,
+
+  and the wave propagates if θ < I. If τ_pulse ≥ R, all R cells behind the front are still firing and this is a geometric sum: **θ < D·λ·(1 − λ^R)/(1 − λ)**. For R = 1 it is the rule D·λ > θ above. τ_ref plays no role.
+- **Starting a wave** needs more: a click fires 3 cells, which give the next cell D·(λ + λ² + λ³) (for R ≥ 3). A click starts a wave if θ is below both this value and I.
+- **Caveat:** with long range and a short pulse (τ_pulse < R), a faster wave (2 or more cells/step) can survive slightly above I. The input can never exceed D·λ·(1 − λ^R)/(1 − λ), so no wave propagates above that value.
 
 ## More experiments
 
@@ -130,8 +137,8 @@ These are also described on the page itself:
 - **Wave collision:** click **Both Ends**. The two waves meet and annihilate, because each runs into the other's refractory band.
 - **Starting vs. sustaining a wave:** set coupling range = 8, τ_pulse = 8, τ_ref = 15.
   - The wave is faster (2 cells/step at θ = 0.30).
-  - At θ = 0.45 a click no longer starts a wave.
-  - A wave started at θ = 0.30 keeps going when θ is raised to 0.45 while it travels, because its front is driven by the many active cells behind it.
+  - At θ = 0.45 a click no longer starts a wave: the 3 clicked cells give the next cell only D·(λ + λ² + λ³) ≈ 0.40.
+  - A wave started at θ = 0.30 keeps going when θ is raised to 0.45 while it travels, because its front is driven by the many active cells behind it: 8 firing cells give D·λ·(1 − λ^8)/(1 − λ) ≈ 0.54. Above that, even a running wave dies.
 
 ## Files
 
@@ -157,7 +164,7 @@ Requires Node ≥ 18; no other dependencies. The tests check:
 - the cell rules: timing, messenger decay, threshold, refractoriness and simultaneous updating;
 - the teaching claims: wave speed, annihilation, and every result quoted in the experiments text;
 - the status-bar logic;
-- the re-excitation formula above;
+- the re-excitation and propagation-threshold formulas above;
 - that the slider defaults in `index.html` match the model.
 
 If you change a default or a model rule, run the tests and update the experiment text where they fail.

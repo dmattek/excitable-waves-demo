@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {NUM_CELLS, STIM_WIDTH, REF_MAX, DEFAULT_PARAMS,
-  freshCells, advance, probeRegime, reexcitationBoundary} = require('./model.js');
+  freshCells, advance, probeWave, probeRegime, reexcitationBoundary} = require('./model.js');
 
 const P = overrides => ({...DEFAULT_PARAMS, ...overrides});
 
@@ -232,6 +232,62 @@ test('12b. after a click, the measured boundary is the formula value or one abov
     const p = P({signalLife});
     const k = formulaBoundary(p), measured = reexcitationBoundary(p);
     assert.ok(measured === k || measured === k + 1, `τ_sig=${signalLife}: measured ${measured}, formula ${k}`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 4b. Theory: propagation threshold
+// ---------------------------------------------------------------------------
+// A front either advances every step or dies (no new cell fires, so inputs ahead only decay).
+// In a wave moving 1 cell/step the cell k places behind the front fired k-1 steps ago, so the
+// next cell receives I1 = Σ_{k=1..R} D·λ^k·s(k-1), with s(a) = 1 for a < τ_pulse, then
+// e^(-(a-τ_pulse+1)/τ_sig). Upper bound: all R cells behind firing, Smax = D·λ·(1-λ^R)/(1-λ).
+// A click (3 cells) gives the next cell C3 = Σ_{k=1..min(3,R)} D·λ^k.
+function thresholdFormulas(p) {
+  const s = a => a < p.pulseWidth ? 1 : (p.signalLife > 0 ? Math.exp(-(a - p.pulseWidth + 1) / p.signalLife) : 0);
+  let I1 = 0, Smax = 0, C3 = 0;
+  for (let k = 1; k <= p.couplingRange; k++) {
+    const w = p.coupling * Math.pow(p.spatialDecay, k);
+    I1 += w * s(k - 1); Smax += w;
+    if (k <= STIM_WIDTH) C3 += w;
+  }
+  return {I1, Smax, C3};
+}
+const EPS = 0.002;
+const propagates = (p, th, running) => probeWave({...p, refractory: REF_MAX, threshold: th}, running).reachedEnd;
+const thresholdCases = (() => {
+  const r = rng(12), cases = [DEFAULT_PARAMS, P({couplingRange: 8, pulseWidth: 8, refractory: 15})];
+  for (let n = 0; n < 200; n++) cases.push(randomParams(r));
+  return cases;
+})();
+
+test('12c. formula values quoted in the texts', () => {
+  const near = (x, y) => Math.abs(x - y) < 5e-4;
+  const d = thresholdFormulas(DEFAULT_PARAMS);
+  assert.ok(near(d.I1, 0.195) && near(d.C3, 0.195));
+  const e5 = thresholdFormulas(P({couplingRange: 8, pulseWidth: 8}));
+  assert.ok(near(e5.I1, 0.539) && near(e5.Smax, 0.539) && near(e5.C3, 0.404));
+});
+
+test('12d. a running wave propagates iff θ < I1 when τ_pulse ≥ range; otherwise I1 ≤ θ_c ≤ Smax', () => {
+  for (const p of thresholdCases) {
+    const {I1, Smax} = thresholdFormulas(p), tag = JSON.stringify(p);
+    assert.ok(propagates(p, I1 - EPS, true), `should propagate below I1=${I1}: ${tag}`);
+    assert.ok(!propagates(p, Smax + EPS, true), `should fail above Smax=${Smax}: ${tag}`);
+    if (p.pulseWidth >= p.couplingRange) {
+      assert.ok(!propagates(p, I1 + EPS, true), `should fail above I1=${I1}: ${tag}`);
+    }
+  }
+});
+
+test('12e. a click starts a wave iff θ < min(C3, I1) when τ_pulse ≥ range; never if θ > C3', () => {
+  for (const p of thresholdCases) {
+    const {I1, C3} = thresholdFormulas(p), th = Math.min(C3, I1), tag = JSON.stringify(p);
+    assert.ok(propagates(p, th - EPS, false), `should start below ${th}: ${tag}`);
+    assert.ok(!propagates(p, C3 + EPS, false), `should not start above C3=${C3}: ${tag}`);
+    if (p.pulseWidth >= p.couplingRange) {
+      assert.ok(!propagates(p, th + EPS, false), `should not start above ${th}: ${tag}`);
+    }
   }
 });
 
